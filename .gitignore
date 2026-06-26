@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+backend/.env
+backend/careeragent.db
+
+# Node
+node_modules/
+frontend/.next/
+frontend/.env
+frontend/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
