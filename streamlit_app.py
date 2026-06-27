@@ -6,6 +6,8 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
+APP_VERSION = "ResumeRoast v2.0"
+
 
 def apply_theme(theme_mode: str) -> None:
     if theme_mode == "Night Ember":
@@ -152,7 +154,7 @@ def parse_json_response(text: str) -> dict[str, Any]:
 def summarize_error_reason(reason: str) -> str:
     lower = reason.lower()
     if "429" in lower or "quota" in lower or "rate limit" in lower:
-        return "Gemini quota reached. Using fallback analysis for now."
+        return "Gemini quota reached. Using fallback mode."
     if "api key" in lower:
         return "Gemini API key issue detected. Using fallback analysis."
     return "Gemini is temporarily unavailable. Using fallback analysis."
@@ -230,7 +232,6 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         "roast": roast,
         "fixes": fixes,
         "source": "fallback",
-        "fallback_detail": reason,
     }
 
 
@@ -291,7 +292,7 @@ def main() -> None:
 
     apply_theme(st.session_state.theme_mode)
 
-    st.markdown('<span class="rr-badge">ResumeRoast v1</span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="rr-badge">{APP_VERSION}</span>', unsafe_allow_html=True)
     st.title("Upload Resume, Get Roasted")
     st.markdown(
         '<div class="rr-banner">This app only does one thing: analyze your resume, score ATS fit, and give a hard-hitting roast with fixes.</div>',
@@ -326,31 +327,29 @@ def main() -> None:
 
         if result.get("source") == "fallback":
             st.warning("Gemini quota/API unavailable. Showing fallback ATS + roast analysis.")
-            with st.expander("Why fallback was used"):
-                st.caption(result.get("fallback_detail", "No additional details."))
 
         c1, c2 = st.columns([1, 2])
         with c1:
             st.metric("ATS Score", f"{score}/100")
         with c2:
-            st.info(result.get("verdict", "No verdict returned"))
+            st.success(result.get("verdict", "No verdict returned"))
 
         left, right = st.columns(2)
         with left:
-            st.markdown('<div class="rr-section"><h3>Matching Keywords</h3></div>', unsafe_allow_html=True)
+            st.subheader("Matching Keywords")
             matching = result.get("matching_keywords", [])
             if matching:
-                st.markdown('<div class="rr-list">' + "<br>".join(f"- {x}" for x in matching) + "</div>", unsafe_allow_html=True)
+                st.markdown("\n".join(f"- {x}" for x in matching))
             else:
-                st.markdown('<div class="rr-list">- None detected</div>', unsafe_allow_html=True)
+                st.caption("No strong matches detected")
 
         with right:
-            st.markdown('<div class="rr-section"><h3>Missing Keywords</h3></div>', unsafe_allow_html=True)
+            st.subheader("Missing Keywords")
             missing = result.get("missing_keywords", [])
             if missing:
-                st.markdown('<div class="rr-list">' + "<br>".join(f"- {x}" for x in missing) + "</div>", unsafe_allow_html=True)
+                st.markdown("\n".join(f"- {x}" for x in missing))
             else:
-                st.markdown('<div class="rr-list">- None critical</div>', unsafe_allow_html=True)
+                st.caption("No critical gaps detected")
 
         st.subheader("Roast")
         st.write(result.get("roast", "No roast returned"))
