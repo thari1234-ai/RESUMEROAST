@@ -136,6 +136,81 @@ def parse_json_response(text: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
+def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str) -> dict[str, Any]:
+    text = resume_text or ""
+    lower_text = text.lower()
+    words = [w for w in text.replace("\n", " ").split(" ") if w.strip()]
+
+    base = 58
+    score = base
+
+    # Basic structure checks
+    for section in ("experience", "education", "skills", "project"):
+        if section in lower_text:
+            score += 4
+
+    has_metrics = any(ch.isdigit() for ch in text)
+    if has_metrics:
+        score += 8
+
+    # Simple JD keyword matching
+    matching_keywords: list[str] = []
+    missing_keywords: list[str] = []
+    if job_description.strip():
+        jd_tokens = {
+            tok.strip(".,:;()[]{}!?\"'").lower()
+            for tok in job_description.split()
+            if len(tok.strip(".,:;()[]{}!?\"'")) >= 4
+        }
+        common_stop = {
+            "with", "that", "this", "from", "your", "have", "will", "role",
+            "team", "work", "experience", "years", "skills", "must", "able",
+        }
+        jd_keywords = [k for k in jd_tokens if k not in common_stop][:30]
+        for kw in jd_keywords:
+            if kw in lower_text:
+                matching_keywords.append(kw)
+            else:
+                missing_keywords.append(kw)
+
+        score += min(14, len(matching_keywords))
+        score -= min(10, len(missing_keywords) // 3)
+    else:
+        # General ATS defaults when no JD is provided
+        for kw in ("python", "sql", "api", "leadership", "communication"):
+            if kw in lower_text:
+                matching_keywords.append(kw)
+            else:
+                missing_keywords.append(kw)
+
+    score = max(35, min(92, score))
+
+    roast = (
+        "Your resume has solid material, but it still feels too duty-focused in places. "
+        "Recruiters and ATS systems reward evidence, not just responsibilities. "
+        "Use sharper impact language and quantified results to turn this from acceptable to shortlist-worthy."
+    )
+
+    fixes = [
+        "Rewrite bullets as Action + Tool + Result + Metric.",
+        "Add measurable outcomes (% improvement, time saved, revenue impact).",
+        "Prioritize role-relevant keywords from the job description near top sections.",
+        "Trim repetitive or generic phrases and keep bullets concise.",
+        "Group skills by category (Languages, Tools, Frameworks) for better ATS parsing.",
+        "Ensure each project includes scope, your contribution, and business impact.",
+    ]
+
+    return {
+        "ats_score": score,
+        "verdict": f"Fallback analysis used due to API limit: {reason}",
+        "matching_keywords": matching_keywords[:12],
+        "missing_keywords": missing_keywords[:12],
+        "roast": roast,
+        "fixes": fixes,
+        "source": "fallback",
+    }
+
+
 def analyze_resume(resume_text: str, job_description: str) -> dict[str, Any]:
     prompt = f"""
 You are an ATS specialist and brutal but useful resume critic.
@@ -156,8 +231,13 @@ Target Job Description (optional):
 {job_description[:4000]}
 """
 
-    raw = run_gemini(prompt)
-    return parse_json_response(raw)
+    try:
+        raw = run_gemini(prompt)
+        parsed = parse_json_response(raw)
+        parsed["source"] = "gemini"
+        return parsed
+    except Exception as exc:
+        return heuristic_analyze_resume(resume_text, job_description, str(exc))
 
 
 def key_status() -> None:
@@ -220,6 +300,9 @@ def main() -> None:
 
         score = int(result.get("ats_score", 0))
         score = max(0, min(100, score))
+
+        if result.get("source") == "fallback":
+            st.warning("Gemini quota/API unavailable. Showing fallback ATS + roast analysis.")
 
         c1, c2 = st.columns([1, 2])
         with c1:
