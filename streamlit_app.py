@@ -84,6 +84,19 @@ def apply_theme(theme_mode: str) -> None:
             .rr-note {{
                 color: var(--muted);
             }}
+
+            .rr-section h3 {{
+                margin-top: 0.3rem;
+                margin-bottom: 0.45rem;
+            }}
+
+            .rr-list {{
+                background: color-mix(in srgb, var(--panel) 75%, transparent);
+                border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
+                border-radius: 0.7rem;
+                padding: 0.7rem 0.9rem;
+                min-height: 170px;
+            }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -134,6 +147,15 @@ def parse_json_response(text: str) -> dict[str, Any]:
         if cleaned.lower().startswith("json"):
             cleaned = cleaned[4:].strip()
     return json.loads(cleaned)
+
+
+def summarize_error_reason(reason: str) -> str:
+    lower = reason.lower()
+    if "429" in lower or "quota" in lower or "rate limit" in lower:
+        return "Gemini quota reached. Using fallback analysis for now."
+    if "api key" in lower:
+        return "Gemini API key issue detected. Using fallback analysis."
+    return "Gemini is temporarily unavailable. Using fallback analysis."
 
 
 def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str) -> dict[str, Any]:
@@ -202,12 +224,13 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
 
     return {
         "ats_score": score,
-        "verdict": f"Fallback analysis used due to API limit: {reason}",
+        "verdict": summarize_error_reason(reason),
         "matching_keywords": matching_keywords[:12],
         "missing_keywords": missing_keywords[:12],
         "roast": roast,
         "fixes": fixes,
         "source": "fallback",
+        "fallback_detail": reason,
     }
 
 
@@ -303,6 +326,8 @@ def main() -> None:
 
         if result.get("source") == "fallback":
             st.warning("Gemini quota/API unavailable. Showing fallback ATS + roast analysis.")
+            with st.expander("Why fallback was used"):
+                st.caption(result.get("fallback_detail", "No additional details."))
 
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -312,14 +337,20 @@ def main() -> None:
 
         left, right = st.columns(2)
         with left:
-            st.subheader("Matching Keywords")
-            for item in result.get("matching_keywords", []):
-                st.write(f"- {item}")
+            st.markdown('<div class="rr-section"><h3>Matching Keywords</h3></div>', unsafe_allow_html=True)
+            matching = result.get("matching_keywords", [])
+            if matching:
+                st.markdown('<div class="rr-list">' + "<br>".join(f"- {x}" for x in matching) + "</div>", unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="rr-list">- None detected</div>', unsafe_allow_html=True)
 
         with right:
-            st.subheader("Missing Keywords")
-            for item in result.get("missing_keywords", []):
-                st.write(f"- {item}")
+            st.markdown('<div class="rr-section"><h3>Missing Keywords</h3></div>', unsafe_allow_html=True)
+            missing = result.get("missing_keywords", [])
+            if missing:
+                st.markdown('<div class="rr-list">' + "<br>".join(f"- {x}" for x in missing) + "</div>", unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="rr-list">- None critical</div>', unsafe_allow_html=True)
 
         st.subheader("Roast")
         st.write(result.get("roast", "No roast returned"))
