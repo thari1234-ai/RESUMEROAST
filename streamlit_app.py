@@ -37,6 +37,34 @@ def apply_theme() -> None:
                 color: var(--text);
             }}
 
+            h1, h2, h3, h4, h5, h6,
+            p, li, label,
+            .stMarkdown, .stText,
+            [data-testid="stMetricLabel"],
+            [data-testid="stMetricValue"],
+            [data-testid="stCaptionContainer"] {{
+                color: var(--text) !important;
+            }}
+
+            [data-testid="stSidebar"] * {{
+                color: var(--text) !important;
+            }}
+
+            .stTextArea textarea,
+            .stTextInput input,
+            .stFileUploader,
+            [data-baseweb="textarea"],
+            [data-baseweb="input"] {{
+                color: var(--text) !important;
+            }}
+
+            .stTextArea label,
+            .stFileUploader label,
+            .st-emotion-cache-1wmy9hl,
+            .st-emotion-cache-16idsys p {{
+                color: var(--text) !important;
+            }}
+
             .stMainBlockContainer {{
                 max-width: 980px;
                 padding-top: 1.2rem;
