@@ -6,26 +6,16 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v2.4"
+APP_VERSION = "ResumeRoast v3.0"
 
 
-def apply_theme(theme_mode: str) -> None:
-    if theme_mode == "Carbon Mint":
-        bg = "#0f1418"
-        panel = "#141b20"
-        card = "#1a232a"
-        text = "#e8eef2"
-        muted = "#9fb0bc"
-        primary = "#2dd4bf"
-        accent = "#22d3ee"
-    else:
-        bg = "#f6fbfa"
-        panel = "#ffffff"
-        card = "#e9f7f4"
-        text = "#1c2b2f"
-        muted = "#5b7078"
-        primary = "#0f766e"
-        accent = "#0891b2"
+def apply_theme() -> None:
+    bg = "#0b090a"
+    panel = "#161012"
+    text = "#f8ebed"
+    muted = "#d4b5bc"
+    primary = "#ef4444"
+    accent = "#fb7185"
 
     st.markdown(
         f"""
@@ -33,7 +23,6 @@ def apply_theme(theme_mode: str) -> None:
             :root {{
                 --bg: {bg};
                 --panel: {panel};
-                --card: {card};
                 --text: {text};
                 --muted: {muted};
                 --primary: {primary};
@@ -42,19 +31,20 @@ def apply_theme(theme_mode: str) -> None:
 
             .stApp {{
                 background:
-                    radial-gradient(circle at 5% 10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 40%),
-                    radial-gradient(circle at 95% 20%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 40%),
-                    linear-gradient(160deg, var(--bg), color-mix(in srgb, var(--panel) 85%, black));
+                    radial-gradient(circle at 10% 12%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 40%),
+                    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 35%),
+                    linear-gradient(160deg, var(--bg), color-mix(in srgb, var(--panel) 88%, black));
                 color: var(--text);
             }}
 
             .stMainBlockContainer {{
                 max-width: 980px;
                 padding-top: 1.2rem;
+                position: relative;
             }}
 
             section[data-testid="stSidebar"] {{
-                background: linear-gradient(180deg, var(--panel), color-mix(in srgb, var(--card) 60%, var(--panel)));
+                background: linear-gradient(180deg, var(--panel), color-mix(in srgb, var(--panel) 88%, black));
                 border-right: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
             }}
 
@@ -63,6 +53,9 @@ def apply_theme(theme_mode: str) -> None:
                 border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
                 background: color-mix(in srgb, var(--primary) 18%, transparent);
                 font-weight: 700;
+                color: var(--text);
+                box-shadow: 0 0 0 rgba(239, 68, 68, 0.55);
+                animation: pulseGlow 2.2s infinite;
             }}
 
             .rr-badge {{
@@ -73,23 +66,67 @@ def apply_theme(theme_mode: str) -> None:
                 background: color-mix(in srgb, var(--primary) 15%, transparent);
                 margin-bottom: 0.55rem;
                 font-size: 0.82rem;
+                animation: floaty 3.4s ease-in-out infinite;
             }}
 
             .rr-note {{
                 color: var(--muted);
             }}
 
-            .rr-section h3 {{
-                margin-top: 0.3rem;
-                margin-bottom: 0.45rem;
+            .rr-hero {{
+                position: relative;
+                overflow: hidden;
+                border-radius: 1rem;
+                border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+                background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 82%, transparent), color-mix(in srgb, var(--panel) 95%, black));
+                padding: 1rem 1rem 0.8rem 1rem;
+                margin-bottom: 0.9rem;
             }}
 
-            .rr-list {{
-                background: color-mix(in srgb, var(--panel) 75%, transparent);
-                border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
-                border-radius: 0.7rem;
-                padding: 0.7rem 0.9rem;
-                min-height: 170px;
+            .rr-hero::before,
+            .rr-hero::after {{
+                content: "";
+                position: absolute;
+                width: 220px;
+                height: 220px;
+                border-radius: 999px;
+                filter: blur(28px);
+                pointer-events: none;
+            }}
+
+            .rr-hero::before {{
+                background: color-mix(in srgb, var(--accent) 42%, transparent);
+                top: -110px;
+                right: -70px;
+                animation: driftA 8s ease-in-out infinite;
+            }}
+
+            .rr-hero::after {{
+                background: color-mix(in srgb, var(--primary) 35%, transparent);
+                bottom: -120px;
+                left: -70px;
+                animation: driftB 9s ease-in-out infinite;
+            }}
+
+            @keyframes pulseGlow {{
+                0% {{ box-shadow: 0 0 0 rgba(239, 68, 68, 0.25); }}
+                50% {{ box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); }}
+                100% {{ box-shadow: 0 0 0 rgba(239, 68, 68, 0.25); }}
+            }}
+
+            @keyframes floaty {{
+                0%, 100% {{ transform: translateY(0); }}
+                50% {{ transform: translateY(-3px); }}
+            }}
+
+            @keyframes driftA {{
+                0%, 100% {{ transform: translate(0, 0); }}
+                50% {{ transform: translate(-14px, 12px); }}
+            }}
+
+            @keyframes driftB {{
+                0%, 100% {{ transform: translate(0, 0); }}
+                50% {{ transform: translate(14px, -10px); }}
             }}
         </style>
         """,
@@ -260,23 +297,19 @@ def main() -> None:
     st.set_page_config(page_title="ResumeRoast", page_icon=":fire:", layout="wide")
     configure_gemini()
 
-    if "theme_mode" not in st.session_state:
-        st.session_state.theme_mode = "Mint Glass"
     if "resume_text" not in st.session_state:
         st.session_state.resume_text = ""
 
     with st.sidebar:
         st.header("ResumeRoast")
-        st.session_state.theme_mode = st.selectbox(
-            "Theme",
-            ["Mint Glass", "Carbon Mint"],
-            index=0 if st.session_state.theme_mode == "Mint Glass" else 1,
-        )
+        st.caption("Red mode only")
 
-    apply_theme(st.session_state.theme_mode)
+    apply_theme()
 
+    st.markdown('<div class="rr-hero">', unsafe_allow_html=True)
     st.markdown(f'<span class="rr-badge">{APP_VERSION}</span>', unsafe_allow_html=True)
     st.title("Upload Resume, Get Roasted")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     uploaded = st.file_uploader("Upload resume", type=["pdf", "txt"], help="PDF or TXT")
     job_description = st.text_area("Job description (optional)", height=140)
