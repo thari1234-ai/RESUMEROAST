@@ -6,7 +6,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v2.3"
+APP_VERSION = "ResumeRoast v2.4"
 
 
 def apply_theme(theme_mode: str) -> None:
@@ -256,10 +256,6 @@ Target Job Description (optional):
         return heuristic_analyze_resume(resume_text, job_description, str(exc))
 
 
-def key_status() -> None:
-    return
-
-
 def main() -> None:
     st.set_page_config(page_title="ResumeRoast", page_icon=":fire:", layout="wide")
     configure_gemini()
@@ -276,7 +272,6 @@ def main() -> None:
             ["Mint Glass", "Carbon Mint"],
             index=0 if st.session_state.theme_mode == "Mint Glass" else 1,
         )
-        key_status()
 
     apply_theme(st.session_state.theme_mode)
 
