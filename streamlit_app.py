@@ -7,7 +7,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v3.0"
+APP_VERSION = "ResumeRoast v3.2"
 
 
 def apply_theme() -> None:
@@ -210,20 +210,27 @@ def parse_json_response(text: str) -> dict[str, Any]:
 
 
 def show_roast_loader() -> None:
-    hooks = [
-        "Scanning for weak bullets...",
-        "Checking ATS keyword gaps...",
-        "Detecting buzzword fluff...",
-        "Hunting for missing metrics...",
-        "Heating the roast cannon...",
+    stages = [
+        ("🔥 Igniting roast engine...", "Warming up sarcasm cores", 12),
+        ("🧠 Reading your resume line by line...", "Looking for vague claims", 28),
+        ("📉 Measuring impact credibility...", "Numbers missing? We will find out", 46),
+        ("🎯 Matching ATS keywords...", "Checking what recruiters expect", 63),
+        ("🧨 Detecting fluff and buzzwords...", "No mercy for filler", 79),
+        ("⚔️ Drafting your roast + fixes...", "Turning criticism into action", 93),
+        ("✅ Finalizing report...", "Serving hot feedback", 100),
     ]
-    msg = st.empty()
+
+    status = st.empty()
+    hook = st.empty()
     bar = st.progress(0)
-    for i, hook in enumerate(hooks, start=1):
-        msg.info(hook)
-        bar.progress(i * 20)
-        time.sleep(0.28)
-    msg.success("Roast complete.")
+
+    for headline, subline, pct in stages:
+        status.info(headline)
+        hook.caption(subline)
+        bar.progress(pct)
+        time.sleep(0.34)
+
+    status.success("Roast complete. Brace yourself.")
 
 
 def summarize_error_reason(reason: str) -> str:
