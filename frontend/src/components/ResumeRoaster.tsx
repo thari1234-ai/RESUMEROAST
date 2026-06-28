@@ -80,7 +80,7 @@ export default function ResumeRoaster({ resumeText: initialText = "", dark = fal
     ];
 
     const parts: { title: string; content: string; style: typeof sections[0] }[] = [];
-    let remaining = text;
+    const remaining = text;
 
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i];

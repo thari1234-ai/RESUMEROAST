@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Activity, Shield, LogOut, RefreshCw, BarChart3, ArrowLeft } from "lucide-react";
+import { Shield, LogOut, RefreshCw, ArrowLeft } from "lucide-react";
 import API_BASE from "../../lib/api";
 
 interface ActivityEntry {
@@ -53,7 +53,7 @@ export default function AdminPage() {
   const [filterAction, setFilterAction] = useState("all");
   const [adminUser, setAdminUser] = useState<{ username: string; email: string; role: string } | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     const token = localStorage.getItem("ca_token");
     if (!token) { router.replace("/"); return; }
     setLoading(true);
@@ -73,7 +73,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     const raw = localStorage.getItem("ca_user");
@@ -83,7 +83,7 @@ export default function AdminPage() {
     if (u.role !== "admin") { router.replace("/"); return; }
     setAdminUser(u);
     fetchData();
-  }, []);
+  }, [fetchData, router]);
 
   const logout = () => {
     localStorage.removeItem("ca_token");

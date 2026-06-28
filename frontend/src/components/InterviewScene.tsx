@@ -25,6 +25,50 @@ export default function InterviewScene({ resumeText, dark = true }: InterviewSce
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<{ role: string; content: string }[]>([]);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  const speak = useCallback((text: string) => {
+    if (!synthRef.current) return;
+    synthRef.current.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    u.onstart = () => setIsSpeaking(true);
+    u.onend = () => setIsSpeaking(false);
+    u.onerror = () => setIsSpeaking(false);
+    synthRef.current.speak(u);
+  }, []);
+
+  const askQuestion = useCallback(async (currentHistory: { role: string; content: string }[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/interview-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_text: resumeText, job_description: jd, history: currentHistory }),
+      });
+      if (!res.ok) throw new Error(`Server error (${res.status})`);
+      const data = await res.json();
+      const question = data.question || '';
+      const updated = [...currentHistory, { role: 'assistant', content: question }];
+      setHistory(updated);
+      speak(question);
+    } catch (err: any) {
+      setError(err.message || 'Failed to reach backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, [jd, resumeText, speak]);
+
+  const handleUserAnswer = useCallback(async (text: string) => {
+    const updated = [...historyRef.current, { role: 'user', content: text }];
+    setHistory(updated);
+    await askQuestion(updated);
+  }, [askQuestion]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -46,56 +90,17 @@ export default function InterviewScene({ resumeText, dark = true }: InterviewSce
       recognitionRef.current = rec;
     }
     synthRef.current = window.speechSynthesis;
-  }, []);
+  }, [handleUserAnswer]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history]);
-
-  const speak = (text: string) => {
-    if (!synthRef.current) return;
-    synthRef.current.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    u.onstart = () => setIsSpeaking(true);
-    u.onend = () => setIsSpeaking(false);
-    u.onerror = () => setIsSpeaking(false);
-    synthRef.current.speak(u);
-  };
-
-  const askQuestion = async (currentHistory: { role: string; content: string }[]) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/interview-question`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume_text: resumeText, job_description: jd, history: currentHistory }),
-      });
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
-      const data = await res.json();
-      const question = data.question || '';
-      const updated = [...currentHistory, { role: 'assistant', content: question }];
-      setHistory(updated);
-      speak(question);
-    } catch (err: any) {
-      setError(err.message || 'Failed to reach backend.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const startInterview = async () => {
     setStarted(true);
     setHistory([]);
     await askQuestion([]);
   };
-
-  const handleUserAnswer = useCallback(async (text: string) => {
-    const updated = [...history, { role: 'user', content: text }];
-    setHistory(updated);
-    await askQuestion(updated);
-  }, [history, jd, resumeText]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {

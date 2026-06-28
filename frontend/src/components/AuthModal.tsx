@@ -17,7 +17,7 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
-export default function AuthModal({ dark = true, onSuccess, onClose }: AuthModalProps) {
+export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');

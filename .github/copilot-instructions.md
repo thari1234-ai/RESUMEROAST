@@ -1,6 +1,6 @@
 - [x] Initialize project structure (FastAPI + Next.js)
-- [ ] Configure Python environment and install backend dependencies
-- [ ] Implement Backend (ATS logic & Gemini integration)
-- [ ] Set up and implement Next.js Frontend
-- [ ] Implement Voice Interview AI (simulated avatar)
-- [ ] Final verification and README
+- [x] Configure Python environment and install backend dependencies
+- [x] Implement Backend (ATS logic & Gemini integration)
+- [x] Set up and implement Next.js Frontend
+- [x] Implement Voice Interview AI (simulated avatar)
+- [x] Final verification and README

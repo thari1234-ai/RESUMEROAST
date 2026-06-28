@@ -63,7 +63,7 @@ export default function AtsAnalysis({ resumeText: resumeTextProp, dark = true }:
           setAnalysis(parsed);
           setEditedSuggestions(parsed.improvements ?? []);
           return;
-        } catch (_) { /* fallthrough */ }
+        } catch { /* fallthrough */ }
       }
       setRawText(raw);
     } catch (err: any) {

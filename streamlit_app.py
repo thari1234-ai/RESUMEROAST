@@ -262,6 +262,22 @@ def apply_theme() -> None:
                 line-height: 1.35;
             }}
 
+            [data-testid="stToast"] {{
+                background: linear-gradient(135deg, rgba(59, 12, 15, 0.98), rgba(31, 10, 12, 0.98)) !important;
+                border: 1px solid rgba(251, 113, 133, 0.62) !important;
+                box-shadow: 0 10px 26px rgba(0, 0, 0, 0.48), 0 0 18px rgba(239, 68, 68, 0.32) !important;
+            }}
+
+            [data-testid="stToast"] * {{
+                color: #fff5f5 !important;
+                opacity: 1 !important;
+                font-weight: 700 !important;
+            }}
+
+            [data-testid="stToast"] button {{
+                color: #ffd7dc !important;
+            }}
+
             .rr-issue {{
                 color: #fecdd3;
                 margin: 0.2rem 0;
@@ -781,6 +797,8 @@ def main() -> None:
         st.session_state.analysis_result = None
     if "auto_scroll_to_roast" not in st.session_state:
         st.session_state.auto_scroll_to_roast = False
+    if "show_roast_notice" not in st.session_state:
+        st.session_state.show_roast_notice = False
 
     apply_theme()
 
@@ -801,6 +819,9 @@ def main() -> None:
             st.error(f"Failed to read file: {exc}")
 
     st.text_area("Resume text (editable)", key="resume_text", height=260)
+
+    if st.session_state.show_roast_notice:
+        st.success("🔥 Your resume has been roasted. Jump down to see the damage.")
 
     jump_col, _ = st.columns([1, 3])
     with jump_col:
@@ -829,7 +850,9 @@ def main() -> None:
         skeleton.empty()
         st.session_state.analysis_result = result
         st.session_state.auto_scroll_to_roast = True
+        st.session_state.show_roast_notice = True
         st.toast("🔥 Your resume has been roasted")
+        st.success("🔥 Your resume has been roasted. Jump down to see the damage.")
 
     if st.session_state.analysis_result is not None:
         render_result(st.session_state.analysis_result)
