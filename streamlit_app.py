@@ -6,13 +6,73 @@ from typing import Any
 import fitz
 import google.generativeai as genai
 import streamlit as st
+import streamlit.components.v1 as components
 
-APP_VERSION = "ResumeRoast v3.4"
+APP_VERSION = "ResumeRoast v3.6"
+
+
+def score_emoji(score: int) -> str:
+    if score >= 80:
+        return "🟢"
+    if score >= 60:
+        return "🟡"
+    if score >= 40:
+        return "🟠"
+    return "🔴"
+
+
+def verdict_emoji(verdict: str) -> str:
+    value = verdict.lower().strip()
+    if "interview" in value:
+        return "🏆"
+    if "maybe" in value:
+        return "🤏"
+    return "🗑️"
+
+
+def section_emoji(name: str) -> str:
+    key = name.lower().strip()
+    if "summary" in key:
+        return "🧾"
+    if "experience" in key:
+        return "💼"
+    if "skill" in key:
+        return "🛠️"
+    if "project" in key:
+        return "🚀"
+    if "format" in key or "clarity" in key:
+        return "🧼"
+    return "🔥"
+
+
+def get_roast_dialogues(result: dict[str, Any]) -> list[str]:
+    raw_dialogues = result.get("roast_dialogues", [])
+    if isinstance(raw_dialogues, list):
+        cleaned = [str(item).strip() for item in raw_dialogues if str(item).strip()]
+        if cleaned:
+            return cleaned[:6]
+
+    generated: list[str] = []
+    for block in result.get("section_roasts", [])[:5]:
+        section = str(block.get("section", "Section")).strip()
+        issue = str(block.get("issue", "This section is weak.")).strip()
+        generated.append(f"{section}? This is rough. {issue}")
+
+    if generated:
+        return generated
+
+    return [
+        "This resume talks big and proves small.",
+        "You wrote ambition. Recruiters wanted evidence.",
+        "This is not a final draft. This is a warning label.",
+        "Half these bullets are smoke, no fire.",
+        "If impact was the goal, this missed by miles.",
+    ]
 
 
 def apply_theme() -> None:
     bg = "#0b090a"
-    panel = "#161012"
+    panel = "#180c0d"
     text = "#f8ebed"
     muted = "#d4b5bc"
     primary = "#ef4444"
@@ -32,10 +92,12 @@ def apply_theme() -> None:
 
             .stApp {{
                 background:
-                    radial-gradient(circle at 10% 12%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 40%),
-                    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 35%),
+                    radial-gradient(circle at 10% 12%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 42%),
+                    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--primary) 24%, transparent), transparent 36%),
+                    radial-gradient(circle at 52% 78%, rgba(255, 132, 0, 0.08), transparent 45%),
                     linear-gradient(160deg, var(--bg), color-mix(in srgb, var(--panel) 88%, black));
                 color: var(--text);
+                scroll-behavior: smooth;
             }}
 
             h1, h2, h3, h4, h5, h6,
@@ -120,8 +182,84 @@ def apply_theme() -> None:
                 margin-bottom: 0.7rem;
             }}
 
+            .rr-roast-block {{
+                border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+                border-radius: 0.95rem;
+                padding: 1rem;
+                background: linear-gradient(140deg, rgba(47, 9, 11, 0.7), rgba(20, 8, 10, 0.9));
+                margin-bottom: 0.8rem;
+            }}
+
+            .rr-result-glow {{
+                border-radius: 1rem;
+                border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+                background: linear-gradient(145deg, rgba(57, 10, 12, 0.64), rgba(21, 8, 10, 0.9));
+                padding: 0.95rem;
+                box-shadow: 0 0 0 rgba(251, 113, 133, 0.22);
+                animation: resultGlow 2.4s ease-in-out infinite;
+                margin-bottom: 0.8rem;
+            }}
+
+            .rr-skeleton-wrap {{
+                margin: 0.75rem 0 0.85rem 0;
+                padding: 0.8rem;
+                border-radius: 0.9rem;
+                border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+                background: linear-gradient(130deg, rgba(39, 10, 12, 0.7), rgba(23, 10, 12, 0.9));
+            }}
+
+            .rr-skeleton-line {{
+                height: 11px;
+                border-radius: 999px;
+                margin-bottom: 0.52rem;
+                background: linear-gradient(90deg, rgba(120, 42, 49, 0.35) 15%, rgba(251, 113, 133, 0.62) 45%, rgba(120, 42, 49, 0.35) 75%);
+                background-size: 220% 100%;
+                animation: shimmer 1.25s linear infinite;
+            }}
+
+            .rr-skeleton-line.short {{
+                width: 62%;
+            }}
+
+            .rr-skeleton-line.med {{
+                width: 82%;
+            }}
+
+            .rr-skeleton-line.full {{
+                width: 100%;
+            }}
+
+            .rr-kicker {{
+                font-size: 0.95rem;
+                color: #fecaca;
+                margin-bottom: 0.3rem;
+                letter-spacing: 0.02rem;
+            }}
+
             .rr-card h4 {{
                 margin: 0 0 0.45rem 0;
+            }}
+
+            .rr-dialogue-card {{
+                border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+                border-radius: 0.9rem;
+                padding: 0.7rem 0.85rem;
+                margin-bottom: 0.55rem;
+                background: linear-gradient(145deg, rgba(61, 8, 10, 0.72), rgba(29, 8, 10, 0.9));
+                box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.06);
+            }}
+
+            .rr-dialogue-label {{
+                color: #fecaca;
+                font-size: 0.82rem;
+                margin-bottom: 0.2rem;
+                letter-spacing: 0.02rem;
+            }}
+
+            .rr-dialogue-line {{
+                color: #ffe4e6;
+                font-weight: 600;
+                line-height: 1.35;
             }}
 
             .rr-issue {{
@@ -153,6 +291,14 @@ def apply_theme() -> None:
                 border-radius: 999px;
                 filter: blur(28px);
                 pointer-events: none;
+            }}
+
+            .rr-fireline {{
+                height: 2px;
+                border-radius: 999px;
+                background: linear-gradient(90deg, rgba(239, 68, 68, 0.08), rgba(251, 113, 133, 0.9), rgba(255, 153, 0, 0.8), rgba(239, 68, 68, 0.08));
+                margin: 0.4rem 0 0.85rem 0;
+                animation: pulseLine 2.2s ease-in-out infinite;
             }}
 
             .rr-hero::before {{
@@ -189,10 +335,149 @@ def apply_theme() -> None:
                 0%, 100% {{ transform: translate(0, 0); }}
                 50% {{ transform: translate(14px, -10px); }}
             }}
+
+            @keyframes pulseLine {{
+                0%, 100% {{ opacity: 0.45; transform: scaleX(0.98); }}
+                50% {{ opacity: 1; transform: scaleX(1); }}
+            }}
+
+            @keyframes shimmer {{
+                0% {{ background-position: 0% 50%; }}
+                100% {{ background-position: 100% 50%; }}
+            }}
+
+            @keyframes resultGlow {{
+                0%, 100% {{ box-shadow: 0 0 0 rgba(251, 113, 133, 0.24); }}
+                50% {{ box-shadow: 0 0 22px rgba(251, 113, 133, 0.36); }}
+            }}
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_loading_skeleton() -> None:
+    st.markdown('<div class="rr-kicker">🔥 Roasting your resume...</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="rr-skeleton-wrap">
+            <div class="rr-skeleton-line full"></div>
+            <div class="rr-skeleton-line med"></div>
+            <div class="rr-skeleton-line short"></div>
+            <div class="rr-skeleton-line full"></div>
+            <div class="rr-skeleton-line med"></div>
+            <div class="rr-skeleton-line short"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def smooth_scroll_to(anchor_id: str) -> None:
+    components.html(
+        f"""
+        <script>
+            const targetId = {json.dumps(anchor_id)};
+            const scrollToTarget = () => {{
+                const doc = window.parent.document;
+                const target = doc.getElementById(targetId);
+                if (target) {{
+                    target.scrollIntoView({{ behavior: "smooth", block: "start" }});
+                }}
+            }};
+            setTimeout(scrollToTarget, 120);
+        </script>
+        """,
+        height=0,
+    )
+
+
+def render_result(result: dict[str, Any]) -> None:
+    score = int(result.get("ats_score", 0))
+    score = max(0, min(100, score))
+
+    st.markdown('<div id="roast-result"></div>', unsafe_allow_html=True)
+
+    if result.get("source") == "fallback":
+        st.warning("Fallback mode active for this result.")
+
+    st.markdown('<div class="rr-result-glow">', unsafe_allow_html=True)
+    st.markdown('<div class="rr-kicker">🔥 Fresh Roast Result</div>', unsafe_allow_html=True)
+
+    st.subheader("ATS Summary")
+    s1, s2 = st.columns([1, 2])
+    with s1:
+        st.metric("ATS Score", f"{score_emoji(score)} {score}/100")
+    with s2:
+        verdict = result.get("verdict", "No verdict returned")
+        verdict_reason = result.get("verdict_reason", "")
+        st.success(f"{verdict_emoji(verdict)} {verdict}")
+        if verdict_reason:
+            st.caption(verdict_reason)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("Keywords")
+    k1, k2 = st.columns(2, gap="large")
+    with k1:
+        st.markdown("**Matching Keywords**")
+        matching = result.get("matching_keywords", [])
+        if matching:
+            for item in matching:
+                st.write(f"- {item}")
+        else:
+            st.caption("No strong matches detected")
+
+    with k2:
+        st.markdown("**Missing Keywords**")
+        missing = result.get("missing_keywords", [])
+        if missing:
+            for item in missing:
+                st.write(f"- {item}")
+        else:
+            st.caption("No critical gaps detected")
+
+    st.subheader("Live Recruiter Roast")
+    st.markdown('<div class="rr-roast-block">', unsafe_allow_html=True)
+    st.markdown('<div class="rr-kicker">🔥 Live panel reaction</div>', unsafe_allow_html=True)
+    st.write(result.get("roast", "No roast returned"))
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("Roast Dialogues")
+    for idx, line in enumerate(get_roast_dialogues(result), start=1):
+        st.markdown(
+            f"""
+            <div class="rr-dialogue-card">
+                <div class="rr-dialogue-label">🎙️ Judge {idx}</div>
+                <div class="rr-dialogue-line">{line}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.subheader("Section-by-Section Roast")
+    for block in result.get("section_roasts", []):
+        section = block.get("section", "Section")
+        sec_score = block.get("score", "-")
+        issue = block.get("issue", "-")
+        reaction = block.get("reaction", "-")
+        fix = block.get("fix", "-")
+        emoji = section_emoji(section)
+        st.markdown(
+            f"""
+            <div class="rr-card">
+                <h4>{emoji} {section} - {sec_score}/10</h4>
+                <p class="rr-issue"><strong>🚨 Issue:</strong> {issue}</p>
+                <p class="rr-issue"><strong>🎤 Recruiter reaction:</strong> {reaction}</p>
+                <p class="rr-fix"><strong>🛠️ Change:</strong> {fix}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.subheader("Fixes")
+    for fix in result.get("fixes", []):
+        st.write(f"✅ {fix}")
 
 
 def configure_gemini() -> None:
@@ -357,12 +642,11 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         issues.append("execution details are still too generic")
 
     roast = (
-        "Welcome to Resume Court. The panel has reviewed 800 resumes today, and yours just walked in with confidence but very little proof. "
-        "It is not hopeless, but it is currently easy to skip.\n\n"
-        f"Main offense: {issues[0]}. "
-        "Recruiters do not reward effort vibes; they reward measurable outcomes.\n\n"
-        "If this were a startup pitch, it would say 'trust me bro' instead of showing traction. "
-        "Fixable? Yes. Interview-ready right now? Not really."
+        "🔥 Roast panel is live. Your resume walked in loud, but the evidence walked in late.\n\n"
+        f"🚨 Main offense: {issues[0]}. Recruiters do not hire confidence theater; they hire proven outcomes.\n\n"
+        "😂 Current vibe: this reads like a trailer for achievements, not the full movie. "
+        "If impact had subtitles here, half the bullets would still be buffering.\n\n"
+        "🧠 Good news: this is fixable fast. Bad news: in this state, many recruiters will pass in under 15 seconds."
     )
 
     fixes = [
@@ -372,6 +656,14 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         "Delete weak filler adjectives and keep each bullet to one concrete impact statement.",
         "Add a project section with stack, scale, and one measurable result per project.",
         "Prioritize high-impact achievements first; stop leading with low-value maintenance tasks.",
+    ]
+
+    roast_dialogues = [
+        "Panelist 1: This summary is confidence cosplay with zero receipts.",
+        "Panelist 2: Experience section reads like chores, not impact.",
+        "Panelist 3: Skills are loud, proof is whispering in the corner.",
+        "Panelist 4: Projects look busy but not valuable yet.",
+        "Panelist 5: Formatting is clean enough, content is still undercooked.",
     ]
 
     section_roasts = [
@@ -419,6 +711,7 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         "matching_keywords": matching_keywords[:12],
         "missing_keywords": missing_keywords[:12],
         "roast": roast,
+        "roast_dialogues": roast_dialogues,
         "fixes": fixes,
         "section_roasts": section_roasts,
         "source": "fallback",
@@ -444,7 +737,8 @@ Required keys:
 - verdict_reason: short explanation for the verdict
 - matching_keywords: array of strings
 - missing_keywords: array of strings
-- roast: string (4-7 paragraphs, savage, funny, and specific)
+- roast: string (4-7 paragraphs, savage, funny, specific, and uses a few fitting emojis)
+- roast_dialogues: array of exactly 5 short lines, each a judge panel quote
 - fixes: array of exactly 6 specific actionable bullet points
 - section_roasts: array of exactly 5 objects with keys:
     - section
@@ -458,6 +752,8 @@ Rules:
 - Point out clichés, filler words, weak projects, unrealistic claims, and recruiter cringe moments.
 - Explain why each issue is weak after each joke.
 - Keep the output hilarious but genuinely useful.
+- Keep tone high-energy with roast-show vibes, but never generic.
+- No compliments, no softening language, no polite framing. Keep it pure roast.
 
 Resume:
 {resume_text[:9000]}
@@ -481,12 +777,17 @@ def main() -> None:
 
     if "resume_text" not in st.session_state:
         st.session_state.resume_text = ""
+    if "analysis_result" not in st.session_state:
+        st.session_state.analysis_result = None
+    if "auto_scroll_to_roast" not in st.session_state:
+        st.session_state.auto_scroll_to_roast = False
 
     apply_theme()
 
     st.markdown('<div class="rr-hero">', unsafe_allow_html=True)
     st.markdown(f'<span class="rr-badge">{APP_VERSION}</span>', unsafe_allow_html=True)
     st.title("Upload Resume, Get Roasted")
+    st.markdown('<div class="rr-fireline"></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     uploaded = st.file_uploader("Upload resume", type=["pdf", "txt"], help="PDF or TXT")
@@ -501,81 +802,40 @@ def main() -> None:
 
     st.text_area("Resume text (editable)", key="resume_text", height=260)
 
+    jump_col, _ = st.columns([1, 3])
+    with jump_col:
+        if st.session_state.analysis_result is not None:
+            if st.button("Jump to Roast Result 🔥", use_container_width=True):
+                st.session_state.auto_scroll_to_roast = True
+
     if st.button("Run Roast + ATS Score", use_container_width=True):
         if not st.session_state.resume_text.strip():
             st.warning("Upload a resume or paste text first")
             st.stop()
+
+        skeleton = st.empty()
+        with skeleton.container():
+            render_loading_skeleton()
 
         show_roast_loader()
 
         try:
             result = analyze_resume(st.session_state.resume_text, job_description)
         except Exception as exc:
+            skeleton.empty()
             st.error(f"Analysis failed: {exc}")
             st.stop()
 
-        score = int(result.get("ats_score", 0))
-        score = max(0, min(100, score))
+        skeleton.empty()
+        st.session_state.analysis_result = result
+        st.session_state.auto_scroll_to_roast = True
+        st.toast("🔥 Your resume has been roasted")
 
-        if result.get("source") == "fallback":
-            st.warning("Fallback mode active for this result.")
-
-        st.subheader("ATS Summary")
-        s1, s2 = st.columns([1, 2])
-        with s1:
-            st.metric("ATS Score", f"{score}/100")
-        with s2:
-            verdict = result.get("verdict", "No verdict returned")
-            verdict_reason = result.get("verdict_reason", "")
-            st.success(verdict)
-            if verdict_reason:
-                st.caption(verdict_reason)
-
-        st.subheader("Keywords")
-        k1, k2 = st.columns(2, gap="large")
-        with k1:
-            st.markdown("**Matching Keywords**")
-            matching = result.get("matching_keywords", [])
-            if matching:
-                for item in matching:
-                    st.write(f"- {item}")
-            else:
-                st.caption("No strong matches detected")
-
-        with k2:
-            st.markdown("**Missing Keywords**")
-            missing = result.get("missing_keywords", [])
-            if missing:
-                for item in missing:
-                    st.write(f"- {item}")
-            else:
-                st.caption("No critical gaps detected")
-
-        st.subheader("Live Recruiter Roast")
-        st.write(result.get("roast", "No roast returned"))
-
-        st.subheader("Section-by-Section Roast")
-        for block in result.get("section_roasts", []):
-            section = block.get("section", "Section")
-            sec_score = block.get("score", "-")
-            issue = block.get("issue", "-")
-            reaction = block.get("reaction", "-")
-            fix = block.get("fix", "-")
-            st.markdown(
-                f"""
-                <div class="rr-card">
-                    <h4>{section} - {sec_score}/10</h4>
-                    <p class="rr-issue"><strong>Issue:</strong> {issue}</p>
-                    <p class="rr-issue"><strong>Recruiter reaction:</strong> {reaction}</p>
-                    <p class="rr-fix"><strong>Change:</strong> {fix}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.subheader("Fixes")
-        for fix in result.get("fixes", []):
-            st.write(f"- {fix}")
+    if st.session_state.analysis_result is not None:
+        render_result(st.session_state.analysis_result)
+        if st.session_state.auto_scroll_to_roast:
+            smooth_scroll_to("roast-result")
+            st.session_state.auto_scroll_to_roast = False
 
     st.markdown('<p class="rr-note">Tip: Better roast quality comes from resumes with clear projects, metrics, and role context.</p>', unsafe_allow_html=True)
 
