@@ -6,7 +6,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v2.0"
+APP_VERSION = "ResumeRoast v2.1"
 
 
 def apply_theme(theme_mode: str) -> None:
@@ -154,10 +154,10 @@ def parse_json_response(text: str) -> dict[str, Any]:
 def summarize_error_reason(reason: str) -> str:
     lower = reason.lower()
     if "429" in lower or "quota" in lower or "rate limit" in lower:
-        return "Gemini quota reached. Using fallback mode."
+        return "AI rate limit reached. Fallback mode is active."
     if "api key" in lower:
-        return "Gemini API key issue detected. Using fallback analysis."
-    return "Gemini is temporarily unavailable. Using fallback analysis."
+        return "API key issue detected. Fallback mode is active."
+    return "AI service temporarily unavailable. Fallback mode is active."
 
 
 def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str) -> dict[str, Any]:
@@ -294,6 +294,7 @@ def main() -> None:
 
     st.markdown(f'<span class="rr-badge">{APP_VERSION}</span>', unsafe_allow_html=True)
     st.title("Upload Resume, Get Roasted")
+    st.caption("Build stamp: 2026-06-28 / layout-refresh")
     st.markdown(
         '<div class="rr-banner">This app only does one thing: analyze your resume, score ATS fit, and give a hard-hitting roast with fixes.</div>',
         unsafe_allow_html=True,
@@ -328,26 +329,30 @@ def main() -> None:
         if result.get("source") == "fallback":
             st.warning("Gemini quota/API unavailable. Showing fallback ATS + roast analysis.")
 
-        c1, c2 = st.columns([1, 2])
-        with c1:
+        st.subheader("ATS Summary")
+        s1, s2 = st.columns([1, 2])
+        with s1:
             st.metric("ATS Score", f"{score}/100")
-        with c2:
+        with s2:
             st.success(result.get("verdict", "No verdict returned"))
 
-        left, right = st.columns(2)
-        with left:
-            st.subheader("Matching Keywords")
+        st.subheader("Keywords")
+        k1, k2 = st.columns(2, gap="large")
+        with k1:
+            st.markdown("**Matching Keywords**")
             matching = result.get("matching_keywords", [])
             if matching:
-                st.markdown("\n".join(f"- {x}" for x in matching))
+                for item in matching:
+                    st.write(f"- {item}")
             else:
                 st.caption("No strong matches detected")
 
-        with right:
-            st.subheader("Missing Keywords")
+        with k2:
+            st.markdown("**Missing Keywords**")
             missing = result.get("missing_keywords", [])
             if missing:
-                st.markdown("\n".join(f"- {x}" for x in missing))
+                for item in missing:
+                    st.write(f"- {item}")
             else:
                 st.caption("No critical gaps detected")
 
