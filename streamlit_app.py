@@ -6,7 +6,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v2.2"
+APP_VERSION = "ResumeRoast v2.3"
 
 
 def apply_theme(theme_mode: str) -> None:
@@ -73,14 +73,6 @@ def apply_theme(theme_mode: str) -> None:
                 background: color-mix(in srgb, var(--primary) 15%, transparent);
                 margin-bottom: 0.55rem;
                 font-size: 0.82rem;
-            }}
-
-            .rr-banner {{
-                background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 24%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
-                border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
-                border-radius: 0.8rem;
-                padding: 0.9rem 1rem;
-                margin: 0.3rem 0 1rem 0;
             }}
 
             .rr-note {{
