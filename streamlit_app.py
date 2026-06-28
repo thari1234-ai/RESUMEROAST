@@ -7,7 +7,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v3.3"
+APP_VERSION = "ResumeRoast v3.4"
 
 
 def apply_theme() -> None:
@@ -357,12 +357,12 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         issues.append("execution details are still too generic")
 
     roast = (
-        "This resume is trying to sound impressive, but it keeps dodging proof. "
-        "Right now it reads like effort without outcomes, which is exactly what hiring managers skip first.\n\n"
-        f"Biggest problem: {issues[0]}. "
-        "If your bullets do not show clear impact, the ATS may pass you but humans still reject you.\n\n"
-        "Good news: the structure is salvageable. Bad news: every weak bullet needs to be rewritten with numbers, tools, and business result. "
-        "Until then, this is closer to a safe template than a shortlist-winning resume."
+        "Welcome to Resume Court. The panel has reviewed 800 resumes today, and yours just walked in with confidence but very little proof. "
+        "It is not hopeless, but it is currently easy to skip.\n\n"
+        f"Main offense: {issues[0]}. "
+        "Recruiters do not reward effort vibes; they reward measurable outcomes.\n\n"
+        "If this were a startup pitch, it would say 'trust me bro' instead of showing traction. "
+        "Fixable? Yes. Interview-ready right now? Not really."
     )
 
     fixes = [
@@ -377,24 +377,45 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
     section_roasts = [
         {
             "section": "Summary",
-            "issue": "Sounds generic and doesn\'t establish clear value.",
+            "score": 4,
+            "issue": "Sounds generic and does not establish clear value.",
+            "reaction": "Recruiter reaction: 'I read this exact summary 20 times this morning.'",
             "fix": "Use 2-3 lines with role target + domain + one measurable achievement.",
         },
         {
             "section": "Experience",
+            "score": 5,
             "issue": "Reads like responsibilities, not outcomes.",
+            "reaction": "Recruiter reaction: 'Nice duties. Where are the results?'",
             "fix": "Rewrite bullets with impact metrics and clear results.",
         },
         {
             "section": "Skills",
+            "score": 5,
             "issue": "Tool list has weak proof of depth.",
+            "reaction": "Recruiter reaction: 'Skill list is loud, proof is quiet.'",
             "fix": "Tie top skills to specific projects and measurable outcomes.",
+        },
+        {
+            "section": "Projects",
+            "score": 6,
+            "issue": "Projects are present but impact framing is weak.",
+            "reaction": "Recruiter reaction: 'Cool build, unclear why it matters.'",
+            "fix": "For each project, include problem, your contribution, and measurable outcome.",
+        },
+        {
+            "section": "Formatting & Clarity",
+            "score": 6,
+            "issue": "Readable, but key wins are buried and bullets are too soft.",
+            "reaction": "Recruiter reaction: 'Not broken, but too easy to skip.'",
+            "fix": "Move top wins higher, tighten bullet length, and remove filler language.",
         },
     ]
 
     return {
         "ats_score": score,
-        "verdict": summarize_error_reason(reason),
+        "verdict": "Maybe",
+        "verdict_reason": summarize_error_reason(reason),
         "matching_keywords": matching_keywords[:12],
         "missing_keywords": missing_keywords[:12],
         "roast": roast,
@@ -406,22 +427,37 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
 
 def analyze_resume(resume_text: str, job_description: str) -> dict[str, Any]:
     prompt = f"""
-You are a brutally honest ATS specialist and resume roaster.
+Roast this resume like a panel of ruthless senior recruiters, hiring managers, startup founders, and internet comedians are reviewing it live.
+
+Do not sugarcoat. Be brutally honest, sarcastic, witty, and specific.
+
+Maximum chaos mode:
+- Reviewer has seen 800 resumes today.
+- Has only 15 seconds to decide.
+- Every criticism must include a practical fix.
+
 Return STRICT VALID JSON only, no markdown.
 
 Required keys:
 - ats_score: integer from 0 to 100
-- verdict: short one-line summary
+- verdict: one of ["Interview", "Maybe", "Straight to the Recycle Bin"]
+- verdict_reason: short explanation for the verdict
 - matching_keywords: array of strings
 - missing_keywords: array of strings
-- roast: string (3-5 short paragraphs, savage but professional, specific and direct)
+- roast: string (4-7 paragraphs, savage, funny, and specific)
 - fixes: array of exactly 6 specific actionable bullet points
-- section_roasts: array of exactly 3 objects with keys section, issue, fix
+- section_roasts: array of exactly 5 objects with keys:
+    - section
+    - score (1-10)
+    - issue
+    - reaction
+    - fix
 
 Rules:
-- Roast should be sharp and uncomfortable, but never abusive.
-- Call out weak bullets, missing metrics, keyword gaps, and generic language.
-- Make fixes practical and immediate.
+- Roast summary, experience, skills, projects, and formatting.
+- Point out clichés, filler words, weak projects, unrealistic claims, and recruiter cringe moments.
+- Explain why each issue is weak after each joke.
+- Keep the output hilarious but genuinely useful.
 
 Resume:
 {resume_text[:9000]}
@@ -489,7 +525,11 @@ def main() -> None:
         with s1:
             st.metric("ATS Score", f"{score}/100")
         with s2:
-            st.success(result.get("verdict", "No verdict returned"))
+            verdict = result.get("verdict", "No verdict returned")
+            verdict_reason = result.get("verdict_reason", "")
+            st.success(verdict)
+            if verdict_reason:
+                st.caption(verdict_reason)
 
         st.subheader("Keywords")
         k1, k2 = st.columns(2, gap="large")
@@ -511,19 +551,22 @@ def main() -> None:
             else:
                 st.caption("No critical gaps detected")
 
-        st.subheader("Roast")
+        st.subheader("Live Recruiter Roast")
         st.write(result.get("roast", "No roast returned"))
 
         st.subheader("Section-by-Section Roast")
         for block in result.get("section_roasts", []):
             section = block.get("section", "Section")
+            sec_score = block.get("score", "-")
             issue = block.get("issue", "-")
+            reaction = block.get("reaction", "-")
             fix = block.get("fix", "-")
             st.markdown(
                 f"""
                 <div class="rr-card">
-                    <h4>{section}</h4>
+                    <h4>{section} - {sec_score}/10</h4>
                     <p class="rr-issue"><strong>Issue:</strong> {issue}</p>
+                    <p class="rr-issue"><strong>Recruiter reaction:</strong> {reaction}</p>
                     <p class="rr-fix"><strong>Change:</strong> {fix}</p>
                 </div>
                 """,
