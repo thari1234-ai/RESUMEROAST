@@ -7,7 +7,7 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v3.2"
+APP_VERSION = "ResumeRoast v3.3"
 
 
 def apply_theme() -> None:
@@ -51,12 +51,22 @@ def apply_theme() -> None:
                 color: var(--text) !important;
             }}
 
+            section[data-testid="stSidebar"] {{
+                display: none !important;
+            }}
+
             .stTextArea textarea,
             .stTextInput input,
             .stFileUploader,
             [data-baseweb="textarea"],
             [data-baseweb="input"] {{
                 color: var(--text) !important;
+            }}
+
+            .stTextArea textarea {{
+                background: #1b1013 !important;
+                border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent) !important;
+                border-radius: 0.7rem !important;
             }}
 
             .stTextArea label,
@@ -100,6 +110,28 @@ def apply_theme() -> None:
 
             .rr-note {{
                 color: var(--muted);
+            }}
+
+            .rr-card {{
+                border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+                background: linear-gradient(135deg, color-mix(in srgb, var(--panel) 90%, black), color-mix(in srgb, var(--primary) 10%, transparent));
+                border-radius: 0.9rem;
+                padding: 0.8rem 0.95rem;
+                margin-bottom: 0.7rem;
+            }}
+
+            .rr-card h4 {{
+                margin: 0 0 0.45rem 0;
+            }}
+
+            .rr-issue {{
+                color: #fecdd3;
+                margin: 0.2rem 0;
+            }}
+
+            .rr-fix {{
+                color: #bbf7d0;
+                margin: 0.2rem 0;
             }}
 
             .rr-hero {{
@@ -246,18 +278,30 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
     text = resume_text or ""
     lower_text = text.lower()
     words = [w for w in text.replace("\n", " ").split(" ") if w.strip()]
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    bullet_count = sum(1 for ln in lines if ln.startswith(("-", "*", "•")))
+    metric_chars = sum(1 for ch in text if ch.isdigit())
 
-    base = 58
-    score = base
+    score = 42
 
     # Basic structure checks
     for section in ("experience", "education", "skills", "project"):
         if section in lower_text:
-            score += 4
+            score += 5
 
     has_metrics = any(ch.isdigit() for ch in text)
     if has_metrics:
-        score += 8
+        score += min(14, metric_chars // 5)
+
+    if bullet_count >= 8:
+        score += 6
+    elif bullet_count <= 2:
+        score -= 5
+
+    if len(words) >= 350:
+        score += 6
+    elif len(words) <= 160:
+        score -= 8
 
     # Simple JD keyword matching
     matching_keywords: list[str] = []
@@ -279,8 +323,8 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
             else:
                 missing_keywords.append(kw)
 
-        score += min(14, len(matching_keywords))
-        score -= min(10, len(missing_keywords) // 3)
+        score += min(16, len(matching_keywords) * 2)
+        score -= min(14, len(missing_keywords))
     else:
         # General ATS defaults when no JD is provided
         for kw in ("python", "sql", "api", "leadership", "communication"):
@@ -289,7 +333,7 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
             else:
                 missing_keywords.append(kw)
 
-    score = max(35, min(92, score))
+    score = max(22, min(94, score))
 
     buzzwords = [
         "team player", "hardworking", "results-oriented", "passionate", "responsible for",
@@ -396,15 +440,11 @@ Target Job Description (optional):
 
 
 def main() -> None:
-    st.set_page_config(page_title="ResumeRoast", page_icon=":fire:", layout="wide")
+    st.set_page_config(page_title="ResumeRoast", page_icon=":fire:", layout="wide", initial_sidebar_state="collapsed")
     configure_gemini()
 
     if "resume_text" not in st.session_state:
         st.session_state.resume_text = ""
-
-    with st.sidebar:
-        st.header("ResumeRoast")
-        st.caption("Red mode only")
 
     apply_theme()
 
@@ -476,9 +516,19 @@ def main() -> None:
 
         st.subheader("Section-by-Section Roast")
         for block in result.get("section_roasts", []):
-            st.markdown(f"**{block.get('section', 'Section')}**")
-            st.write(f"Issue: {block.get('issue', '-')}")
-            st.write(f"Change: {block.get('fix', '-')}")
+            section = block.get("section", "Section")
+            issue = block.get("issue", "-")
+            fix = block.get("fix", "-")
+            st.markdown(
+                f"""
+                <div class="rr-card">
+                    <h4>{section}</h4>
+                    <p class="rr-issue"><strong>Issue:</strong> {issue}</p>
+                    <p class="rr-fix"><strong>Change:</strong> {fix}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.subheader("Fixes")
         for fix in result.get("fixes", []):
