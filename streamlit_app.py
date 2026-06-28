@@ -266,19 +266,43 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
 
     score = max(35, min(92, score))
 
+    buzzwords = [
+        "team player", "hardworking", "results-oriented", "passionate", "responsible for",
+        "detail-oriented", "self-motivated", "dynamic", "fast learner",
+    ]
+    buzz_found = [b for b in buzzwords if b in lower_text]
+
+    issues: list[str] = []
+    if not has_metrics:
+        issues.append("zero measurable impact")
+    if len(words) < 220:
+        issues.append("thin content that reads like a draft")
+    if buzz_found:
+        issues.append("buzzword overload")
+    if "project" not in lower_text:
+        issues.append("weak project evidence")
+    if "lead" not in lower_text and "managed" not in lower_text:
+        issues.append("limited leadership signals")
+
+    if not issues:
+        issues.append("execution details are still too generic")
+
     roast = (
-        "Your resume has solid material, but it still feels too duty-focused in places. "
-        "Recruiters and ATS systems reward evidence, not just responsibilities. "
-        "Use sharper impact language and quantified results to turn this from acceptable to shortlist-worthy."
+        "This resume is trying to sound impressive, but it keeps dodging proof. "
+        "Right now it reads like effort without outcomes, which is exactly what hiring managers skip first.\n\n"
+        f"Biggest problem: {issues[0]}. "
+        "If your bullets do not show clear impact, the ATS may pass you but humans still reject you.\n\n"
+        "Good news: the structure is salvageable. Bad news: every weak bullet needs to be rewritten with numbers, tools, and business result. "
+        "Until then, this is closer to a safe template than a shortlist-winning resume."
     )
 
     fixes = [
-        "Rewrite bullets as Action + Tool + Result + Metric.",
-        "Add measurable outcomes (% improvement, time saved, revenue impact).",
-        "Prioritize role-relevant keywords from the job description near top sections.",
-        "Trim repetitive or generic phrases and keep bullets concise.",
-        "Group skills by category (Languages, Tools, Frameworks) for better ATS parsing.",
-        "Ensure each project includes scope, your contribution, and business impact.",
+        "Rewrite each bullet as Action + Tool + Result + Metric (no metric = rewrite again).",
+        "Replace vague phrases with quantifiable outcomes (% improvement, latency drop, revenue impact).",
+        "Mirror top job-description keywords in your summary, skills, and strongest experience bullets.",
+        "Delete weak filler adjectives and keep each bullet to one concrete impact statement.",
+        "Add a project section with stack, scale, and one measurable result per project.",
+        "Prioritize high-impact achievements first; stop leading with low-value maintenance tasks.",
     ]
 
     return {
@@ -294,7 +318,7 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
 
 def analyze_resume(resume_text: str, job_description: str) -> dict[str, Any]:
     prompt = f"""
-You are an ATS specialist and brutal but useful resume critic.
+You are a brutally honest ATS specialist and resume roaster.
 Return STRICT VALID JSON only, no markdown.
 
 Required keys:
@@ -302,8 +326,13 @@ Required keys:
 - verdict: short one-line summary
 - matching_keywords: array of strings
 - missing_keywords: array of strings
-- roast: string (3-5 short paragraphs, witty but professional)
+- roast: string (3-5 short paragraphs, savage but professional, specific and direct)
 - fixes: array of exactly 6 specific actionable bullet points
+
+Rules:
+- Roast should be sharp and uncomfortable, but never abusive.
+- Call out weak bullets, missing metrics, keyword gaps, and generic language.
+- Make fixes practical and immediate.
 
 Resume:
 {resume_text[:9000]}
