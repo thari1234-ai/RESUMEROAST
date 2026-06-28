@@ -6,26 +6,26 @@ import fitz
 import google.generativeai as genai
 import streamlit as st
 
-APP_VERSION = "ResumeRoast v2.1"
+APP_VERSION = "ResumeRoast v2.2"
 
 
 def apply_theme(theme_mode: str) -> None:
-    if theme_mode == "Night Ember":
-        bg = "#0b1020"
-        panel = "#11162a"
-        card = "#1b2340"
-        text = "#f3f4f6"
-        muted = "#94a3b8"
-        primary = "#fb7185"
-        accent = "#f59e0b"
+    if theme_mode == "Carbon Mint":
+        bg = "#0f1418"
+        panel = "#141b20"
+        card = "#1a232a"
+        text = "#e8eef2"
+        muted = "#9fb0bc"
+        primary = "#2dd4bf"
+        accent = "#22d3ee"
     else:
-        bg = "#fdf7f2"
-        panel = "#fffaf5"
-        card = "#ffe7d6"
-        text = "#1f2937"
-        muted = "#6b7280"
-        primary = "#ea580c"
-        accent = "#0ea5e9"
+        bg = "#f6fbfa"
+        panel = "#ffffff"
+        card = "#e9f7f4"
+        text = "#1c2b2f"
+        muted = "#5b7078"
+        primary = "#0f766e"
+        accent = "#0891b2"
 
     st.markdown(
         f"""
@@ -265,10 +265,7 @@ Target Job Description (optional):
 
 
 def key_status() -> None:
-    if gemini_ready():
-        st.success("GEMINI_API_KEY detected")
-    else:
-        st.warning("Missing GEMINI_API_KEY in secrets")
+    return
 
 
 def main() -> None:
@@ -276,7 +273,7 @@ def main() -> None:
     configure_gemini()
 
     if "theme_mode" not in st.session_state:
-        st.session_state.theme_mode = "Sunset Paper"
+        st.session_state.theme_mode = "Mint Glass"
     if "resume_text" not in st.session_state:
         st.session_state.resume_text = ""
 
@@ -284,21 +281,15 @@ def main() -> None:
         st.header("ResumeRoast")
         st.session_state.theme_mode = st.selectbox(
             "Theme",
-            ["Sunset Paper", "Night Ember"],
-            index=0 if st.session_state.theme_mode == "Sunset Paper" else 1,
+            ["Mint Glass", "Carbon Mint"],
+            index=0 if st.session_state.theme_mode == "Mint Glass" else 1,
         )
         key_status()
-        st.caption("Single-purpose app: Upload resume -> ATS score + Roast")
 
     apply_theme(st.session_state.theme_mode)
 
     st.markdown(f'<span class="rr-badge">{APP_VERSION}</span>', unsafe_allow_html=True)
     st.title("Upload Resume, Get Roasted")
-    st.caption("Build stamp: 2026-06-28 / layout-refresh")
-    st.markdown(
-        '<div class="rr-banner">This app only does one thing: analyze your resume, score ATS fit, and give a hard-hitting roast with fixes.</div>',
-        unsafe_allow_html=True,
-    )
 
     uploaded = st.file_uploader("Upload resume", type=["pdf", "txt"], help="PDF or TXT")
     job_description = st.text_area("Job description (optional)", height=140)
@@ -327,7 +318,7 @@ def main() -> None:
         score = max(0, min(100, score))
 
         if result.get("source") == "fallback":
-            st.warning("Gemini quota/API unavailable. Showing fallback ATS + roast analysis.")
+            st.warning("Fallback mode active for this result.")
 
         st.subheader("ATS Summary")
         s1, s2 = st.columns([1, 2])
