@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Any
 
 import fitz
@@ -208,6 +209,23 @@ def parse_json_response(text: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
+def show_roast_loader() -> None:
+    hooks = [
+        "Scanning for weak bullets...",
+        "Checking ATS keyword gaps...",
+        "Detecting buzzword fluff...",
+        "Hunting for missing metrics...",
+        "Heating the roast cannon...",
+    ]
+    msg = st.empty()
+    bar = st.progress(0)
+    for i, hook in enumerate(hooks, start=1):
+        msg.info(hook)
+        bar.progress(i * 20)
+        time.sleep(0.28)
+    msg.success("Roast complete.")
+
+
 def summarize_error_reason(reason: str) -> str:
     lower = reason.lower()
     if "429" in lower or "quota" in lower or "rate limit" in lower:
@@ -305,6 +323,24 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         "Prioritize high-impact achievements first; stop leading with low-value maintenance tasks.",
     ]
 
+    section_roasts = [
+        {
+            "section": "Summary",
+            "issue": "Sounds generic and doesn\'t establish clear value.",
+            "fix": "Use 2-3 lines with role target + domain + one measurable achievement.",
+        },
+        {
+            "section": "Experience",
+            "issue": "Reads like responsibilities, not outcomes.",
+            "fix": "Rewrite bullets with impact metrics and clear results.",
+        },
+        {
+            "section": "Skills",
+            "issue": "Tool list has weak proof of depth.",
+            "fix": "Tie top skills to specific projects and measurable outcomes.",
+        },
+    ]
+
     return {
         "ats_score": score,
         "verdict": summarize_error_reason(reason),
@@ -312,6 +348,7 @@ def heuristic_analyze_resume(resume_text: str, job_description: str, reason: str
         "missing_keywords": missing_keywords[:12],
         "roast": roast,
         "fixes": fixes,
+        "section_roasts": section_roasts,
         "source": "fallback",
     }
 
@@ -328,6 +365,7 @@ Required keys:
 - missing_keywords: array of strings
 - roast: string (3-5 short paragraphs, savage but professional, specific and direct)
 - fixes: array of exactly 6 specific actionable bullet points
+- section_roasts: array of exactly 3 objects with keys section, issue, fix
 
 Rules:
 - Roast should be sharp and uncomfortable, but never abusive.
@@ -385,6 +423,8 @@ def main() -> None:
             st.warning("Upload a resume or paste text first")
             st.stop()
 
+        show_roast_loader()
+
         try:
             result = analyze_resume(st.session_state.resume_text, job_description)
         except Exception as exc:
@@ -426,6 +466,12 @@ def main() -> None:
 
         st.subheader("Roast")
         st.write(result.get("roast", "No roast returned"))
+
+        st.subheader("Section-by-Section Roast")
+        for block in result.get("section_roasts", []):
+            st.markdown(f"**{block.get('section', 'Section')}**")
+            st.write(f"Issue: {block.get('issue', '-')}")
+            st.write(f"Change: {block.get('fix', '-')}")
 
         st.subheader("Fixes")
         for fix in result.get("fixes", []):
